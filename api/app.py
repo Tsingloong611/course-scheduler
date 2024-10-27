@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, render_template_string
+import re
 
 app = Flask(__name__)
 
@@ -17,12 +18,12 @@ def has_time_conflict(selected_times, time_slots):
 def select_optimal_courses(course_options):
     min_early_classes = len(course_options)
     best_schedule = []
-    solution_found = False  # 用于检测是否找到有效解
+    solution_found = False
 
     def recurse(course_index, current_schedule, selected_times, early_class_count):
         nonlocal min_early_classes, best_schedule, solution_found
         if course_index == len(course_options):
-            solution_found = True  # 表示找到至少一个可行解
+            solution_found = True
             if early_class_count < min_early_classes:
                 min_early_classes = early_class_count
                 best_schedule = list(current_schedule)
@@ -58,26 +59,37 @@ def select_optimal_courses(course_options):
 def index():
     if request.method == "POST":
         course_data = request.form.get("courses").strip().split("\n")
-
         course_options = []
-        for course in course_data:
+        error_messages = []
+
+        for idx, course in enumerate(course_data):
             course_info = course.strip().split(",")
             if len(course_info) < 3:
-                return render_template_string(
-                    '<p style="color: red;">请检查输入格式，每行应为：课程名称,班级,时间段1&时间段2...</p>')
+                error_messages.append(f"课程 {idx + 1}: 数据不足，请检查输入格式。")
+                continue
 
-            course_name = course_info[0].strip()
-            section = course_info[1].strip()
-            time_slots = course_info[2].strip().split("&")
+            course_name, section, time_slots = course_info[0].strip(), course_info[1].strip(), course_info[2].strip()
+            if not re.match(r"^[A-Za-z0-9\u4e00-\u9fa5]+$", course_name):
+                error_messages.append(f"课程 {idx + 1}: 课程名称格式错误。")
+            if not re.match(r"^[A-Za-z0-9]+$", section):
+                error_messages.append(f"课程 {idx + 1}: 班级编号格式错误。")
+            if not re.match(r"^[A-Za-z0-9&-]+$", time_slots.replace(",", "&")):
+                error_messages.append(f"课程 {idx + 1}: 时间段格式错误，时间段需用逗号分隔。")
+
+            if error_messages:
+                continue
 
             existing_course = next((c for c in course_options if c["name"] == course_name), None)
             if existing_course:
-                existing_course["options"].append({"section": section, "timeSlots": time_slots})
+                existing_course["options"].append({"section": section, "timeSlots": time_slots.split("&")})
             else:
                 course_options.append({
                     "name": course_name,
-                    "options": [{"section": section, "timeSlots": time_slots}]
+                    "options": [{"section": section, "timeSlots": time_slots.split("&")}]
                 })
+
+        if error_messages:
+            return render_template_string('<p style="color: red;">' + "<br>".join(error_messages) + '</p>')
 
         best_schedule, min_early_classes, solution_found = select_optimal_courses(course_options)
 
@@ -101,5 +113,11 @@ def index():
     return render_template("index.html", best_schedule=None)
 
 
+# Vercel 无状态函数入口
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
