@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>课程安排优化</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>课程安排优化</h1>
+
+        <!-- 课程信息输入区域 -->
+        <div id="course-container">
+            <h2>输入课程信息</h2>
+            <table id="course-table" border="1">
+                <tr>
+                    <th>课程名称</th>
+                    <th>班级编号</th>
+                    <th>时间段（逗号分隔）</th>
+                    <th>操作</th>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 添加课程和提交按钮 -->
+        <button onclick="addCourseRow()">添加课程</button>
+        <button onclick="submitCourses()">优化课程安排</button>
+
+        <!-- 输出优化结果 -->
+        <div id="output">
+            <!-- 错误信息展示 -->
+            <div id="error" style="color: red;"></div>
+            <div id="best-schedule"></div>
+        </div>
+
+        <script>
+            // 添加课程行
+            function addCourseRow() {
+                const table = document.getElementById("course-table");
+                const row = table.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" name="course-name" required></td>
+                    <td><input type="text" name="section" required></td>
+                    <td><input type="text" name="timeSlots" placeholder="例如：一1-2,二3-4" required></td>
+                    <td><button type="button" onclick="removeRow(this)">删除</button></td>
+                `;
+            }
+
+            // 删除课程行
+            function removeRow(button) {
+                const row = button.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+            }
+
+            // 提交课程数据 (AJAX 提交)
+            async function submitCourses() {
+                const rows = document.querySelectorAll("#course-table tr");
+                const courses = [];
+
+                rows.forEach((row, index) => {
+                    if (index === 0) return;  // 跳过标题行
+
+                    const courseName = row.querySelector('input[name="course-name"]').value.trim();
+                    const section = row.querySelector('input[name="section"]').value.trim();
+                    const timeSlots = row.querySelector('input[name="timeSlots"]').value.trim();
+
+                    if (courseName && section && timeSlots) {
+                        courses.push(`${courseName},${section},${timeSlots.replace(/,\s*/g, "&")}`);
+                    }
+                });
+
+                // 构建请求体
+                const formData = new FormData();
+                formData.append("courses", courses.join("\n"));
+
+                try {
+                    // 发送 AJAX 请求
+                    const response = await fetch("/", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    const result = await response.text();
+                    document.getElementById("output").innerHTML = result;  // 更新结果区域
+
+                } catch (error) {
+                    document.getElementById("error").textContent = "提交失败，请检查网络连接。";
+                }
+            }
+        </script>
+    </div>
+</body>
+</html>
