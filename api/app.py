@@ -1,7 +1,14 @@
 from flask import Flask, render_template, request, render_template_string
+from werkzeug.middleware.proxy_fix import ProxyFix
 import re
+import os
 
-app = Flask(__name__)
+# 创建 Flask 应用实例，并指定模板和静态文件路径
+app = Flask(
+    __name__,
+    template_folder=os.path.join(os.path.dirname(__file__), '../templates'),
+    static_folder=os.path.join(os.path.dirname(__file__), '../static')
+)
 
 # 定义早八时间段
 early_slots = {"一1-2", "二1-2", "三1-2", "四1-2", "五1-2"}
@@ -110,14 +117,11 @@ def index():
             ''', best_schedule=best_schedule, min_early_classes=min_early_classes
         )
 
-    return render_template("index.html", best_schedule=None)
+    return render_template("index.html")
 
 
-# Vercel 无状态函数入口
-from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
-
+# 配置代理修复（在 Vercel 环境中生效）
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
