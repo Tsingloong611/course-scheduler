@@ -80,8 +80,6 @@ def index():
                 error_messages.append(f"课程 {idx + 1}: 课程名称格式错误。")
             if not re.match(r"^[A-Za-z0-9]+$", section):
                 error_messages.append(f"课程 {idx + 1}: 班级编号格式错误。")
-            if not re.match(r"^[A-Za-z0-9&-]+$", time_slots.replace(",", "&")):
-                error_messages.append(f"课程 {idx + 1}: 时间段格式错误，时间段需用逗号分隔。")
 
             if error_messages:
                 continue
